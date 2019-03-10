@@ -1,0 +1,17 @@
+I'd like you to make me a program which emulates the drafting modes available for dota 2
+but with the league champion pool
+even if league doesn't support these modes
+custom games are a possibility
+yeah I didn't think it'd be too difficult
+the 3 modes i'd be looking for are
+All-random (no duplicates, 2 rerolls)
+Single Draft (all players choose from 3 champions, no duplicates)
+Random Draft (Players choose from a fixed pool of 20-30 random champions, no duplicates)
+I want it set up in such a way that it can executed outside of game
+and then people will just go in with a designated champ and pick that champ
+no rush tho
+there might even already be an existent community
+for this sort of stuff
+I might do some digging tonight
+anyway since i'm not paying you or anything just make it at your leisure, but give me progress reports when you feel like you've reached certain benchmarks
+good luck :thumbsup:
