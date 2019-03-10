@@ -3,6 +3,8 @@ package League::Draft;
 use strict;
 use warnings; # FIXME:
 
+use English;
+
 # TODO: install Term::Screen::Uni; for cross platform cls
 use Exporter qw(import);
 
@@ -12,15 +14,26 @@ our @EXPORT_OK = qw(
 
 sub run_app {
   # TODO: register a die handler
-  
-  my $status;
+  my $status = 0;
   until ($status eq 'quit') {
     $status = do_one_main_loop();
   }
 }
 
+sub clear_screen {
+  if ($OSNAME =~ /Win32/i) {
+    system('cls');
+  } elsif ($OSNAME =~ /linux/i) {
+    print "\033[2J"; 
+  }
+}
+
 sub do_one_main_loop {
-  # Print options to user
+  # Print intro + options to user
+  print "LOL DRAFT\n";
+  print "\n";
+
+  # Get user input
 
   # select from dispatch table which subprogram to run
 
