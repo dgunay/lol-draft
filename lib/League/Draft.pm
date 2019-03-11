@@ -390,6 +390,7 @@ sub create_team {
 sub all_random {
   # Local champ pool since we'll be removing champs from the pool after each roll
   my %champ_pool = get_all_champions();
+  # TODO: divide champ pools in two
 
   my $assign_champions_randomly = sub {
     my $random_champion = get_random_champion(\%champ_pool);
