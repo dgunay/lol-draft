@@ -349,19 +349,18 @@ sub all_random {
   }
 
   # Allow red team to reroll or trade
-  print "Commands:\n";
+  print "Commands (omit parentheses):\n";
   print " - rr (player name/number): Reroll a player's champion and send it to the reroll pool.\n";
-  print " - trade number number: Trade champions between two players.\n";
+  print " - trade (number) (number): Trade champions between two players.\n";
   print " - ok: Continue to next team\n";
 
   my %commands = (
-    'rr' => \&reroll,
-    'trade' => 
-    'ok' => sub { },
+    'rr'    => \&reroll,
+    'trade' => \&trade,
+    'ok'    => sub { },
   );
 
   my $input = get_user_input();
-
 
   # Display Blue Team
 
