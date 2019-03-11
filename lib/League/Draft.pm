@@ -271,14 +271,14 @@ sub clear_screen {
   if ($OSNAME =~ /Win32/i) {
     system('cls');
   } elsif ($OSNAME =~ /linux/i) {
-    print "\033[2J"; 
+    print "\033[2J";    #clear the screen
+    print "\033[0;0H"; #jump to 0,0
   }
 }
 
 sub do_one_main_loop {
   clear_screen();
 
-  # TODO: make pretty
   # Print intro + options to user
   show_main_menu();
 
@@ -354,27 +354,51 @@ sub get_random_champion {
   return (keys %$pool)[rand keys %$pool];
 }
 
+sub create_team {
+  my $team_name       = shift;
+  my $assign_champion = shift; # coderef to determine champ assignment per player
+
+  clear_screen();
+  print "Creating $team_name...\n";
+
+  my @names = ();
+  print "Would you like to name the players for $team_name? (y/n)";
+  if (get_user_input() =~ /y/i) {
+    for my $i ( 1 .. 5) {
+      print "Name player $i: ";
+      my $name = '';
+      until ($name) {
+        $name = get_user_input();
+      } 
+      push @names, trim($name);
+    }
+  }
+  else {
+    push @names, "$team_name Player $_" for (1 .. 5);
+  }
+
+  my @team = ();
+  foreach my $name (@names) {
+    my $champion = $assign_champion->();
+    my $player = new_player($champion, $name);
+    push @team, $player;
+  }
+
+  return @team;
+}
+
 sub all_random {
   # Local champ pool since we'll be removing champs from the pool after each roll
   my %champ_pool = get_all_champions();
 
-  # TODO: ask if they want to name the teams
-
-  my @red_team = ();
-  foreach my $number (1 .. 5) {
+  my $assign_champions_randomly = sub {
     my $random_champion = get_random_champion(\%champ_pool);
     delete $champ_pool{$random_champion}; # delete that champ from the pool
-    my $player = new_player($random_champion, "Player Red $number");
-    push @red_team, $player;
-  }
+    return $random_champion;
+  };
 
-  my @blue_team = ();
-  foreach my $number (1 .. 5) {
-    my $random_champion = get_random_champion(\%champ_pool);
-    delete $champ_pool{$random_champion}; # delete that champ from the pool
-    my $player = new_player($random_champion, "Player Blue $number");
-    push @blue_team, $player;
-  }
+  my @red_team  = create_team("Red Team",  $assign_champions_randomly);
+  my @blue_team = create_team("Blue Team", $assign_champions_randomly);
 
   # Red team's phase
   do_one_all_random_team('Red Team', \@red_team, \%champ_pool);
