@@ -456,7 +456,6 @@ sub display_team_and_commands {
     print "($player_num) " . $$player{'playerName'} . ': ' . $$player{'champion'} . "\n";
   }
 
-  # Allow team to reroll or trade TODO: parameterize to reuse across draft modes.
   print "\nCommands (omit parentheses):\n";
   foreach my $command (@$commands) {
     print " - $command\n";
