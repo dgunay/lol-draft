@@ -14,6 +14,7 @@ our @EXPORT_OK = qw(
   new_player
   get_all_champions
   is_valid_champ
+  parse_command
 );
 
 # Controls which view the player goes to
@@ -232,6 +233,9 @@ sub help {
 
 # Presents user with error message on unhandled exception.
 sub die_handler {
+  my $inside_eval = $^S;
+  die @_ if $inside_eval; # rethrow if the exception is being caught already
+
   my $msg = shift;
 
   clear_screen();
@@ -313,7 +317,7 @@ sub select_mode {
     return $dispatch_table{$key}{'sub'};
   }
 
-  die "Key not found in dispatch table";
+  croak "Key not found in dispatch table";
 }
 
 
@@ -370,8 +374,9 @@ sub all_random {
 
   # Display Red team
   print "Red Team:\n";
-  foreach my $player (@red_team) {
-    print ' - ' . $$player{'playerName'} . ': ' . $$player{'champion'} . "\n";
+  foreach my $player_num (0 .. $#{red_team}) {
+    my $player = $red_team[$player_num];
+    print "($player_num) " . $$player{'playerName'} . ': ' . $$player{'champion'} . "\n";
   }
 
   # Allow red team to reroll or trade
@@ -385,14 +390,37 @@ sub all_random {
     'trade' => \&trade,
     'ok'    => sub { },
   );
-
   my $input = get_user_input();
+  my $command = {};
+  while (1) {
+    eval { 
+      $command = parse_command($input);
+      last;
+    };
+    print "Invalid command. Try again: " if $@;
+  }
+
 
   # Display Blue Team
 
   # Allow blue team to reroll or trade
 
   get_user_input();
+}
+
+sub parse_command {
+  my $command = shift;
+  croak 'Null command' unless $command;
+
+  my @tokens = split(/ /, $command);
+  croak 'Command is empty' unless @tokens;
+
+  return {
+    # first token is symbol
+    'symbol' => shift @tokens,
+    # thereafter are space-delimited args
+    'args'   => \@tokens,
+  };
 }
 
 # rerolls the player's champion by reference and returns their former champion

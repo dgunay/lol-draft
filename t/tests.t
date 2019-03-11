@@ -1,7 +1,7 @@
 use strict;
 use warnings;
 
-use Test::More tests => 6;
+use Test::More tests => 7;
 
 use League::Draft qw (
   reroll 
@@ -9,6 +9,7 @@ use League::Draft qw (
   new_player 
   get_all_champions
   is_valid_champ
+  parse_command
 );
 
 my %champs = get_all_champions();
@@ -29,3 +30,7 @@ is($$player3{'champion'}, 'Kassadin', 'Trade');
 # test is_valid_champ
 ok(is_valid_champ('Teemo'));
 ok(!is_valid_champ('Garbflarbledegook'));
+
+# test parse_command
+my $command = parse_command('rr 1');
+is_deeply($command, {'symbol' => 'rr', 'args' => ['1']}, 'Test parse command');
