@@ -203,10 +203,17 @@ sub get_all_champions {
 }
 
 sub quit {
-  exit(0);
+  my $status = shift // 0;
+  exit $status;
 }
 
 sub help {
+  print "  ____________\n";
+  print " |            |\n";
+  print " |    HELP    | \n";
+  print " |____________|\n";
+  print "\n";
+
   # Display help for each menu option
   foreach my $key (sort keys %dispatch_table) {
     my $obj = $dispatch_table{$key};
@@ -223,9 +230,28 @@ sub help {
   get_user_input();
 }
 
+# Presents user with error message on unhandled exception.
+sub die_handler {
+  my $msg = shift;
+
+  clear_screen();
+  print "LOL Draft has encountered the following error and must close:\n";
+  print "\n";
+  print $msg;
+  print "\n";
+  print "Please give this error message to the developer in a bug report at:\n";
+  print "  https://github.com/dgunay/lol-draft/issues\n\n";
+  print "Press enter to quit.";
+  get_user_input();
+
+  exit 1;
+}
+
 # Main entry point of the app
 sub run_app {
   # TODO: register a die handler
+  $SIG{__DIE__} = \&die_handler;
+
   # TODO: register a warn handler
   # my $status = 0;
   until ('forever' && 0) {
