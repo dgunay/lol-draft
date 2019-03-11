@@ -13,6 +13,7 @@ our @EXPORT_OK = qw(
   trade
   new_player
   get_all_champions
+  is_valid_champ
 );
 
 # Controls which view the player goes to
@@ -298,10 +299,6 @@ sub get_user_input {
 
 sub is_valid_champ {
   my $name = shift;
-
-  die 'Paste in valid champs';  
-
-  # grep in 
   return exists $all_champions{$name};
 }
 
