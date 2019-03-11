@@ -372,7 +372,7 @@ sub all_random {
   foreach my $number (1 .. 5) {
     my $random_champion = get_random_champion(\%champ_pool);
     delete $champ_pool{$random_champion}; # delete that champ from the pool
-    my $player = new_player($random_champion, "Player Red $number");
+    my $player = new_player($random_champion, "Player Blue $number");
     push @blue_team, $player;
   }
 
@@ -384,10 +384,38 @@ sub all_random {
   do_one_all_random_team('Blue Team', \@blue_team, \%champ_pool);
 
   # Display teams
+  clear_screen();
+  print_teams(\@red_team, \@blue_team);
 
-
-  print "Press Enter to return to the main menu.";
+  print "\nPress Enter to return to the main menu.";
   get_user_input();
+}
+
+sub print_teams {
+  my $red_team  = shift;
+  my $blue_team = shift;
+
+  print "RED TEAM ------------------------------------------- BLUE TEAM\n";
+  for my $i ( 1 .. 5 ) {
+    print across($$red_team[$i-1]{'playerName'}, $$blue_team[$i-1]{'playerName'}) . "\n";
+    print across($$red_team[$i-1]{'champion'}, $$blue_team[$i-1]{'champion'}) . "\n";
+  }
+}
+
+sub across {
+  my $a = shift;
+  my $b = shift;
+
+  my $str = '';
+  $str .= $a;
+
+  # Print space until strlen b - 1;
+  for ( 0 .. ( 61 - length($a) ) - length($b)) {
+    $str .= ' ';
+  }
+  $str .= $b;
+
+  return $str;
 }
 
 sub display_team_and_commands {
