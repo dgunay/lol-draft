@@ -1,0 +1,8 @@
+#!/usr/bin/env perl
+
+use strict;
+use warnings;
+
+use League::Draft qw (run_app);
+
+run_app();
