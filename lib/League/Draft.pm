@@ -4,12 +4,15 @@ use strict;
 use warnings; # FIXME:
 
 use English;
-
-# TODO: install Term::Screen::Uni; for cross platform cls
+use Carp;
 use Exporter qw(import);
 
 our @EXPORT_OK = qw(
   run_app
+  reroll
+  trade
+  new_player
+  get_all_champions
 );
 
 # Controls which view the player goes to
@@ -47,6 +50,157 @@ our %dispatch_table = (
   },
 );
 
+# TODO: use riot datadragon API to parse the latest JSON
+our %all_champions = map {$_ => 1} (
+  "Aatrox",
+  "Ahri",
+  "Akali",
+  "Alistar",
+  "Amumu",
+  "Anivia",
+  "Annie",
+  "Ashe",
+  "Aurelion Sol",
+  "Azir",
+  "Bard",
+  "Blitzcrank",
+  "Brand",
+  "Braum",
+  "Caitlyn",
+  "Camille",
+  "Cassiopeia",
+  "Cho'Gath",
+  "Corki",
+  "Darius",
+  "Diana",
+  "Draven",
+  "Dr. Mundo",
+  "Ekko",
+  "Elise",
+  "Evelynn",
+  "Ezreal",
+  "Fiddlesticks",
+  "Fiora",
+  "Fizz",
+  "Galio",
+  "Gangplank",
+  "Garen",
+  "Gnar",
+  "Gragas",
+  "Graves",
+  "Hecarim",
+  "Heimerdinger",
+  "Illaoi",
+  "Irelia",
+  "Ivern",
+  "Janna",
+  "Jarvan IV",
+  "Jax",
+  "Jayce",
+  "Jhin",
+  "Jinx",
+  "Kai'Sa",
+  "Kalista",
+  "Karma",
+  "Karthus",
+  "Kassadin",
+  "Katarina",
+  "Kayle",
+  "Kayn",
+  "Kennen",
+  "Kha'Zix",
+  "Kindred",
+  "Kled",
+  "Kog'Maw",
+  "LeBlanc",
+  "Lee Sin",
+  "Leona",
+  "Lissandra",
+  "Lucian",
+  "Lulu",
+  "Lux",
+  "Malphite",
+  "Malzahar",
+  "Maokai",
+  "Master Yi",
+  "Miss Fortune",
+  "Wukong",
+  "Mordekaiser",
+  "Morgana",
+  "Nami",
+  "Nasus",
+  "Nautilus",
+  "Neeko",
+  "Nidalee",
+  "Nocturne",
+  "Nunu & Willump",
+  "Olaf",
+  "Orianna",
+  "Ornn",
+  "Pantheon",
+  "Poppy",
+  "Pyke",
+  "Quinn",
+  "Rakan",
+  "Rammus",
+  "Rek'Sai",
+  "Renekton",
+  "Rengar",
+  "Riven",
+  "Rumble",
+  "Ryze",
+  "Sejuani",
+  "Shaco",
+  "Shen",
+  "Shyvana",
+  "Singed",
+  "Sion",
+  "Sivir",
+  "Skarner",
+  "Sona",
+  "Soraka",
+  "Swain",
+  "Sylas",
+  "Syndra",
+  "Tahm Kench",
+  "Taliyah",
+  "Talon",
+  "Taric",
+  "Teemo",
+  "Thresh",
+  "Tristana",
+  "Trundle",
+  "Tryndamere",
+  "Twisted Fate",
+  "Twitch",
+  "Udyr",
+  "Urgot",
+  "Varus",
+  "Vayne",
+  "Veigar",
+  "Vel'Koz",
+  "Vi",
+  "Viktor",
+  "Vladimir",
+  "Volibear",
+  "Warwick",
+  "Xayah",
+  "Xerath",
+  "Xin Zhao",
+  "Yasuo",
+  "Yorick",
+  "Zac",
+  "Zed",
+  "Ziggs",
+  "Zilean",
+  "Zoe",
+  "Zyra",
+);
+
+sub get_all_champions {
+  return %all_champions;
+}
+
 sub quit {
   exit(0);
 }
@@ -68,10 +222,10 @@ sub help {
   get_user_input();
 }
 
-
-
+# Main entry point of the app
 sub run_app {
   # TODO: register a die handler
+  # TODO: register a warn handler
   # my $status = 0;
   until ('forever' && 0) {
     do_one_main_loop();
@@ -146,20 +300,99 @@ sub is_valid_champ {
   my $name = shift;
 
   die 'Paste in valid champs';  
-  my %valid_champs = (
-    # name => 1
-  );
 
   # grep in 
-  return exists $valid_champs{$name};
+  return exists $all_champions{$name};
 }
 
-sub setup_teams {
-  # form red and blue teams of 5 each
+sub new_player {
+  my $champion = shift;
+  my $name     = shift;
+
+  return {
+    'champion'   => $champion,
+    'playerName' => $name,  
+  };
 }
 
-sub run_all_random_draft {
-  
+sub get_random_champion {
+  my $pool = shift;
+
+  croak 'Not a hashref' unless ref $pool eq 'HASH';
+
+  return (keys %$pool)[rand keys %$pool];
+}
+
+sub all_random {
+  # Local champ pool since we'll be removing champs from the pool after each roll
+  my %champ_pool = %all_champions;
+
+  my @red_team = ();
+  foreach my $number (1 .. 5) {
+    my $random_champion = get_random_champion(\%champ_pool);
+    delete $champ_pool{$random_champion}; # delete that champ from the pool
+    my $player = new_player($random_champion, "Player Red $number");
+    push @red_team, $player;
+  }
+
+  my @blue_team = ();
+  foreach my $number (1 .. 5) {
+    my $random_champion = get_random_champion(\%champ_pool);
+    delete $champ_pool{$random_champion}; # delete that champ from the pool
+    my $player = new_player($random_champion, "Player Red $number");
+    push @blue_team, $player;
+  }
+
+  my @reroll_pool = ();
+
+  # Display Red team
+  print "Red Team:\n";
+  foreach my $player (@red_team) {
+    print ' - ' . $$player{'playerName'} . ': ' . $$player{'champion'} . "\n";
+  }
+
+  # Allow red team to reroll or trade
+  print "Commands:\n";
+  print " - rr (player name/number): Reroll a player's champion and send it to the reroll pool.\n";
+  print " - trade number number: Trade champions between two players.\n";
+  print " - ok: Continue to next team\n";
+
+  my %commands = (
+    'rr' => \&reroll,
+    'trade' => 
+    'ok' => sub { },
+  );
+
+  my $input = get_user_input();
+
+
+  # Display Blue Team
+
+  # Allow blue team to reroll or trade
+
+  get_user_input();
+}
+
+# rerolls the player's champion by reference and returns their former champion
+sub reroll {
+  my $player     = shift;
+  my $champ_pool = shift;
+  croak 'Invalid arguments' unless $player and $champ_pool;
+
+  my $ret = $$player{'champion'};
+  $$player{'champion'} = get_random_champion($champ_pool);
+  return $ret;
+}
+
+# Trades two players' champions by reference.
+sub trade {
+  my $player1 = shift;
+  my $player2 = shift;
+  croak 'Invalid arguments (needs two players)' unless $player1 and $player2;
+
+  my $temp = $$player1{'champion'};
+  $$player1{'champion'} = $$player2{'champion'};
+  $$player2{'champion'} = $temp;
 }
 
 1;
