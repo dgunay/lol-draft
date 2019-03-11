@@ -4,7 +4,8 @@ use strict;
 use warnings; # FIXME:
 
 use English;
-use Carp;
+use Data::Dumper; # FIXME:
+use List::Util qw(any);
 use Exporter qw(import);
 
 our @EXPORT_OK = qw(
@@ -253,10 +254,13 @@ sub die_handler {
 
 # Main entry point of the app
 sub run_app {
-  # TODO: register a die handler
-  $SIG{__DIE__} = \&die_handler;
+  # Register signal handlers (warnings and dies alert the user and then close)
+  $SIG{__DIE__}  = \&die_handler;
+  $SIG{__WARN__} = sub { 
+    if ($^S) { warn @_; return; } 
+    die @_; 
+  }; 
 
-  # TODO: register a warn handler
   # my $status = 0;
   until ('forever' && 0) {
     do_one_main_loop();
@@ -317,7 +321,7 @@ sub select_mode {
     return $dispatch_table{$key}{'sub'};
   }
 
-  croak "Key not found in dispatch table";
+  die "Key not found in dispatch table";
 }
 
 
@@ -345,14 +349,16 @@ sub new_player {
 sub get_random_champion {
   my $pool = shift;
 
-  croak 'Not a hashref' unless ref $pool eq 'HASH';
+  die 'Not a hashref' unless ref $pool eq 'HASH';
 
   return (keys %$pool)[rand keys %$pool];
 }
 
 sub all_random {
   # Local champ pool since we'll be removing champs from the pool after each roll
-  my %champ_pool = %all_champions;
+  my %champ_pool = get_all_champions();
+
+  # TODO: ask if they want to name the teams
 
   my @red_team = ();
   foreach my $number (1 .. 5) {
@@ -370,50 +376,143 @@ sub all_random {
     push @blue_team, $player;
   }
 
-  my @reroll_pool = ();
+  # Red team's phase
+  do_one_all_random_team('Red Team', \@red_team, \%champ_pool);
 
-  # Display Red team
-  print "Red Team:\n";
-  foreach my $player_num (0 .. $#{red_team}) {
-    my $player = $red_team[$player_num];
+  # Blue team's phase
+  clear_screen();
+  do_one_all_random_team('Blue Team', \@blue_team, \%champ_pool);
+
+  # Display teams
+
+
+  print "Press Enter to return to the main menu.";
+  get_user_input();
+}
+
+sub display_team_and_commands {
+  my $team_name = shift;
+  my $team      = shift;
+  my $commands  = shift;
+
+  print "$team_name:\n";
+  foreach my $player_num (0 .. $#{$team}) {
+    my $player = $$team[$player_num];
     print "($player_num) " . $$player{'playerName'} . ': ' . $$player{'champion'} . "\n";
   }
 
-  # Allow red team to reroll or trade
-  print "Commands (omit parentheses):\n";
-  print " - rr (player name/number): Reroll a player's champion and send it to the reroll pool.\n";
-  print " - trade (number) (number): Trade champions between two players.\n";
-  print " - ok: Continue to next team\n";
+  # Allow team to reroll or trade TODO: parameterize to reuse across draft modes.
+  print "\nCommands (omit parentheses):\n";
+  foreach my $command (@$commands) {
+    print " - $command\n";
+  }
+}
 
-  my %commands = (
-    'rr'    => \&reroll,
-    'trade' => \&trade,
-    'ok'    => sub { },
-  );
-  my $input = get_user_input();
-  my $command = {};
+sub do_one_all_random_team {
+  my $team_name  = shift;
+  my $team       = shift;
+  my $champ_pool = shift; # for rerolls
+
+  my @team = @$team;
+
+  my @reroll_pool = ();
+
+  my $commands = [
+    'rr (playernumber): Reroll a player\'s champion and send it to the reroll pool.',
+    'trade (number) (number): Trade champions between two players.',
+    'pool (playernumber) (champion): Assign a player a champion from the reroll pool',
+    'ok: Continue to next team',
+  ];
+
+  # User inputs a command with arguments
+  my $input       = '';
+  my $command_obj = {};
   while (1) {
+    my $end = 0;
+    display_team_and_commands($team_name, $team, $commands);
+
+    print "Current reroll pool: " . join(', ', @reroll_pool) . "\n" if @reroll_pool;
+
+    print "\nChoose a command: ";
+
     eval { 
-      $command = parse_command($input);
-      last;
+      $input       = get_user_input();
+      $command_obj = parse_command($input);
+
+      my $symbol = $$command_obj{'symbol'};
+      my @args = @{$$command_obj{'args'}};
+      $end = $symbol eq 'ok';
+
+      # Reroll that player's champ and add it to the pool
+      if ($symbol eq 'rr') {
+        my $player = $team[$args[0]];
+        my $old_champ = reroll($player, $champ_pool);
+        push @reroll_pool, $old_champ;
+        clear_screen();
+        print "Player " . $$player{'playerName'} . " rerolled from $old_champ to " . $$player{'champion'} . "\n\n";
+      }
+      elsif ($symbol eq 'trade') {
+        trade($team[$args[0]], $team[$args[1]]);
+        clear_screen();
+        print "Traded champions.\n\n";
+      }
+      elsif ($symbol eq 'pool') {
+        my $player = $team[$args[0]];
+        # transform the commands to get the champ name (in case of spaces)
+        shift @args;
+        my $champion = join(' ', @args);
+
+        assign_from_pool($player, $champion, \@reroll_pool);
+        clear_screen();
+        print "Assigned " . $$player{'playerName'} . ' champion ' . $$player{'champion'} . "\n\n";
+      }
+      elsif ($symbol ne 'ok') {
+        die "Command $symbol is not a valid command\n";
+      }
     };
-    print "Invalid command. Try again: " if $@;
+    if ($@) {
+      my $msg = lcfirst(trim($@));
+      clear_screen();
+      print "Invalid command ($msg). Try again.\n\n";
+    }
+
+    last if $end;
   }
 
+  # Put rerolls back in the champ pool
+  $$champ_pool{$_} = 1 for @reroll_pool;
+}
 
-  # Display Blue Team
+sub assign_from_pool {
+  my $player = shift;
+  my $champion = shift;
+  my $pool = shift;
 
-  # Allow blue team to reroll or trade
+  # Swap the champs in the pool if it matches
+  foreach my $i (0 .. @$pool) {
+    if ($$pool[$i] =~ /$champion/i) {
+      my $old_champ = $$player{'champion'};
+      $$player{'champion'} = $$pool[$i];
+      $$pool[$i] = $old_champ;
+      return;
+    }
+  }
 
-  get_user_input();
+  die "No champion '$champion' found in pool\n";
+}
+
+sub trim {
+  my $str = shift;
+  $str =~ s/^\s+|\s+$//g;
+  return $str;
 }
 
 sub parse_command {
   my $command = shift;
-  croak 'Null command' unless $command;
+  die "Command is empty\n" unless $command;
 
   my @tokens = split(/ /, $command);
-  croak 'Command is empty' unless @tokens;
+  die "Command is empty\n" unless @tokens;
 
   return {
     # first token is symbol
@@ -427,7 +526,7 @@ sub parse_command {
 sub reroll {
   my $player     = shift;
   my $champ_pool = shift;
-  croak 'Invalid arguments' unless $player and $champ_pool;
+  die "Invalid arguments\n" unless $player and $champ_pool;
 
   my $ret = $$player{'champion'};
   $$player{'champion'} = get_random_champion($champ_pool);
@@ -438,7 +537,11 @@ sub reroll {
 sub trade {
   my $player1 = shift;
   my $player2 = shift;
-  croak 'Invalid arguments (needs two players)' unless $player1 and $player2;
+  die "Invalid arguments (needs two players)\n" unless $player1 and $player2;
+  die "Players cannot be the same\n" if (
+    $$player1{'playerName'}  eq $$player2{'playerName'}
+    or $$player1{'champion'} eq $$player2{'champion'}
+  );
 
   my $temp = $$player1{'champion'};
   $$player1{'champion'} = $$player2{'champion'};
