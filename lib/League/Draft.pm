@@ -401,6 +401,7 @@ sub all_random {
   my @blue_team = create_team("Blue Team", $assign_champions_randomly);
 
   # Red team's phase
+  clear_screen();
   do_one_all_random_team('Red Team', \@red_team, \%champ_pool);
 
   # Blue team's phase
@@ -421,22 +422,24 @@ sub print_teams {
 
   print "RED TEAM ------------------------------------------- BLUE TEAM\n";
   for my $i ( 1 .. 5 ) {
-    print across($$red_team[$i-1]{'playerName'}, $$blue_team[$i-1]{'playerName'}) . "\n";
-    print across($$red_team[$i-1]{'champion'}, $$blue_team[$i-1]{'champion'}) . "\n";
+    # FIXME: hardcoded constants 61
+    print across($$red_team[$i-1]{'playerName'}, $$blue_team[$i-1]{'playerName'}, 61) . "\n";
+    print across($$red_team[$i-1]{'champion'}, $$blue_team[$i-1]{'champion'}, 61) . "\n";
   }
 }
 
+# Prints two strings with intervening white space in a way that will always
+# take up the same amount of horizontal space (for $len)
 sub across {
   my $a = shift;
   my $b = shift;
+  my $len = shift;
 
   my $str = '';
   $str .= $a;
 
-  # Print space until strlen b - 1;
-  for ( 0 .. ( 61 - length($a) ) - length($b)) {
-    $str .= ' ';
-  }
+  # Print whitespace in that special sauce way
+  $str .= ' ' for ( 0 .. ( $len - length($a) ) - length($b));
   $str .= $b;
 
   return $str;
