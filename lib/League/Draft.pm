@@ -6,7 +6,6 @@ use warnings; # FIXME:
 use LWP::Simple;                        # For GET requests.
 use JSON;                               # For decoding responses from the Riot DataDragon API.
 use English;                            # For easy-to-read constants
-use Data::Dumper;                       # FIXME: for debugging
 use List::Util qw(any shuffle);         # List search/manipulation
 use Scalar::Util qw(looks_like_number); # Input validation
 use Exporter qw(import);                # For exporting specific functions
@@ -293,7 +292,6 @@ sub all_random {
     $red_pool{$champion}  = 1 if $i % 2 == 0; # Evens go to Red
     $blue_pool{$champion} = 1 if $i % 2 == 1; # Odds go to Blue
     $i++;
-    last if $i > 20; # FIXME:
   }
 
   # Creates closure around pool of champions to randomly assign from
@@ -332,7 +330,107 @@ sub all_random {
   get_user_input();
 }
 
+sub random_draft {
+  # Local champ pool since we'll be removing champs from the pool after each roll
+  my %champ_pool = get_all_champions();
 
+  # divide champ pools in two randomly, to make up for ordered picking.
+  my %red_pool  = ();
+  my %blue_pool = ();
+  my $i = 0;
+  foreach my $champion (keys %champ_pool) {
+    $red_pool{$champion}  = 1 if $i % 2 == 0; # Evens go to Red
+    $blue_pool{$champion} = 1 if $i % 2 == 1; # Odds go to Blue
+    $i++;
+    last if $i > 20; # FIXME:
+  }
+
+  # Don't assign champions to start.
+  my $no_champion_assigned = sub { return undef; };
+  my @red_team  = create_team("Red Team",  $no_champion_assigned);
+  my @blue_team = create_team("Blue Team", $no_champion_assigned);
+
+  # How big shall the draft pool be?
+  clear_screen();
+  print "How many champions shall be random-drafted from? (Minimum 10): ";
+  my $how_many = 0;
+  while (1) {
+    $how_many = get_user_input();
+    last if looks_like_number($how_many) and $how_many >= 10;
+    print "Must be a number no less than 10, try again: ";
+  }
+
+  # Cull down to $how_many champions out of the pool
+  my @draft_pool = shuffle keys %champ_pool;
+  pop @draft_pool until (scalar @draft_pool) <= $how_many;
+
+  my %draft_pool = map { $_ => 1 } @draft_pool;
+
+  # Run the draft turns.
+  # red
+  random_draft_selection($red_team[0], \%draft_pool);
+
+  # blue blue
+  random_draft_selection($blue_team[0], \%draft_pool);
+  random_draft_selection($blue_team[1], \%draft_pool);
+
+  # red red
+  random_draft_selection($red_team[1], \%draft_pool);
+  random_draft_selection($red_team[2], \%draft_pool);
+
+  # blue blue 
+  random_draft_selection($blue_team[2], \%draft_pool);
+  random_draft_selection($blue_team[3], \%draft_pool);
+  
+  # red red
+  random_draft_selection($red_team[3], \%draft_pool);
+  random_draft_selection($red_team[4], \%draft_pool);
+
+  # blue
+  random_draft_selection($blue_team[4], \%draft_pool);
+
+  # Display teams
+  clear_screen();
+  print_teams(\@red_team, \@blue_team);
+
+  print "\nPress Enter to return to the main menu.";
+  get_user_input();
+}
+
+# Allows a player to select a champion, then removes it from the pool.
+sub random_draft_selection {
+  my $player     = shift;
+  my $draft_pool = shift;
+
+  # Show them their choices
+  # TODO: this is ugly, make a pretty grid.
+  clear_screen();
+  print "Player " . $$player{'playerName'} . "'s turn to draft.\n\n";
+  print "Available champions:\n";
+  my $i = 1;
+  foreach my $champion (keys %$draft_pool) {
+    print $champion . ' ';
+    print "\n" if $i % 12 == 0;
+    $i++; 
+  }
+
+  # Let them pick.
+  print "\n\nChoose a champion: ";
+  my $champion = undef;
+  while(1) {
+    my $choice = get_user_input();
+    if (my @hits = grep {/$choice/i} keys %$draft_pool and $choice) {
+      $champion = shift @hits;
+      last;
+    }
+    print "Champion '$choice' not found, try again: ";
+  }
+
+  die 'Invalid state' unless $champion;
+
+  $$player{'champion'} = $champion;
+  delete $$draft_pool{$champion};
+}
 
 sub single_draft {
   # Leave champions unassigned
