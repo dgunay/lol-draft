@@ -18,6 +18,7 @@ our @EXPORT_OK = qw(
   get_all_champions
   is_valid_champ
   parse_command
+  set_all_champions
 );
 
 # Controls which view the player goes to
@@ -77,6 +78,15 @@ sub refresh_champions {
     my $name = $$champions_data{'data'}{$key}{'name'};
     $all_champions{$name} = 1;
   }
+}
+
+# For testing purposes, manually sets the champions
+sub set_all_champions {
+  my $hashref = shift;
+
+  die "Not a hashref" unless ref $hashref eq 'HASH';
+
+  %all_champions = %$hashref;
 }
 
 sub get_all_champions {
