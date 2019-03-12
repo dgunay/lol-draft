@@ -251,7 +251,7 @@ sub get_random_champion {
 sub create_team {
   my $team_name       = shift;
   my $assign_champion = shift; # coderef to determine champ assignment per player
-
+  
   clear_screen();
   print "Creating $team_name...\n";
 
@@ -284,24 +284,45 @@ sub create_team {
 sub all_random {
   # Local champ pool since we'll be removing champs from the pool after each roll
   my %champ_pool = get_all_champions();
-  # TODO: divide champ pools in two
 
-  my $assign_champions_randomly = sub {
-    my $random_champion = get_random_champion(\%champ_pool);
-    delete $champ_pool{$random_champion}; # delete that champ from the pool
-    return $random_champion;
+  # divide champ pools in two randomly, to make up for ordered picking.
+  my %red_pool  = ();
+  my %blue_pool = ();
+  my $i = 0;
+  foreach my $champion (keys %champ_pool) {
+    $red_pool{$champion}  = 1 if $i % 2 == 0; # Evens go to Red
+    $blue_pool{$champion} = 1 if $i % 2 == 1; # Odds go to Blue
+    $i++;
+    last if $i > 20; # FIXME:
+  }
+
+  # Creates closure around pool of champions to randomly assign from
+  my $create_random_assignment_from = sub {
+    my $pool = shift; # pool to use
+    return sub {
+      my $random_champion = get_random_champion($pool);
+      delete $$pool{$random_champion}; # delete that champ from the pool
+      return $random_champion;
+    };
   };
 
-  my @red_team  = create_team("Red Team",  $assign_champions_randomly);
-  my @blue_team = create_team("Blue Team", $assign_champions_randomly);
+  my @red_team  = create_team(
+    "Red Team",  
+    $create_random_assignment_from->(\%red_pool)
+  );
+
+  my @blue_team = create_team(
+    "Blue Team", 
+    $create_random_assignment_from->(\%blue_pool)
+  );
 
   # Red team's phase
   clear_screen();
-  do_one_all_random_team('Red Team', \@red_team, \%champ_pool);
+  do_one_all_random_team('Red Team', \@red_team, \%red_pool);
 
   # Blue team's phase
   clear_screen();
-  do_one_all_random_team('Blue Team', \@blue_team, \%champ_pool);
+  do_one_all_random_team('Blue Team', \@blue_team, \%blue_pool);
 
   # Display teams
   clear_screen();
@@ -310,6 +331,8 @@ sub all_random {
   print "\nPress Enter to return to the main menu.";
   get_user_input();
 }
+
+
 
 sub single_draft {
   # Leave champions unassigned
@@ -460,11 +483,28 @@ sub do_one_all_random_team {
 
       # Reroll that player's champ and add it to the pool
       if ($symbol eq 'rr') {
+        # Put their old champ in the reroll pool
         my $player = $team[$args[0]];
-        my $old_champ = reroll($player, $champ_pool);
+        my $old_champ = $$player{'champion'};
+
+        # Give them a new champion from the champ pool
+        eval { reroll($player, $champ_pool) };
+        if ($@) {
+          # roll back the operation on exception
+          $$player{'champion'} = $old_champ;
+          die $@; # and rethrow
+        }
+
+        # Put their old champ in the reroll pool if it worked
         push @reroll_pool, $old_champ;
+
+        # Checking for regression
+        die "Champion duplicate after reroll" if $old_champ eq $$player{'champion'};
+
         clear_screen();
         print "Player " . $$player{'playerName'} . " rerolled from $old_champ to " . $$player{'champion'} . "\n\n";
+        print "Champions in the random pool: " . (scalar keys %{$champ_pool}) . "\n";
+        print "Champions in the reroll pool: " . scalar @reroll_pool . "\n\n";
       }
       elsif ($symbol eq 'trade') {
         trade($team[$args[0]], $team[$args[1]]);
@@ -486,6 +526,9 @@ sub do_one_all_random_team {
       }
     };
     if ($@) {
+      die $@ if $@ =~ /champion duplicate/i; # rethrow on serious state error
+
+      # Else prompt a retry from the user.
       my $msg = lcfirst(trim($@));
       clear_screen();
       print "Invalid command ($msg). Try again.\n\n";
@@ -537,14 +580,17 @@ sub parse_command {
   };
 }
 
-# rerolls the player's champion by reference and returns their former champion
+# rerolls the player's champion by reference and returns their former champion.
+# Deletes their new champ from the champ pool as well.
 sub reroll {
   my $player     = shift;
   my $champ_pool = shift;
   die "Invalid arguments\n" unless $player and $champ_pool;
+  die "No champions left in pool\n" unless (scalar keys %$champ_pool);
 
   my $ret = $$player{'champion'};
   $$player{'champion'} = get_random_champion($champ_pool);
+  delete $$champ_pool{$$player{'champion'}};
   return $ret;
 }
 
