@@ -3,10 +3,12 @@ package League::Draft;
 use strict;
 use warnings; # FIXME:
 
-use English;
-use Data::Dumper; # FIXME:
-use List::Util qw(any);
-use Exporter qw(import);
+use LWP::Simple;         # For GET requests.
+use JSON;                # For decoding responses from the Riot DataDragon API.
+use English;             # For easy-to-read constants
+use Data::Dumper;        # FIXME: for debugging
+use List::Util qw(any);  # FIXME: dead code?
+use Exporter qw(import); # For exporting specific functions
 
 our @EXPORT_OK = qw(
   run_app
@@ -53,152 +55,29 @@ our %dispatch_table = (
   },
 );
 
-# TODO: use riot datadragon API to parse the latest JSON
-our %all_champions = map {$_ => 1} (
-  "Aatrox",
-  "Ahri",
-  "Akali",
-  "Alistar",
-  "Amumu",
-  "Anivia",
-  "Annie",
-  "Ashe",
-  "Aurelion Sol",
-  "Azir",
-  "Bard",
-  "Blitzcrank",
-  "Brand",
-  "Braum",
-  "Caitlyn",
-  "Camille",
-  "Cassiopeia",
-  "Cho'Gath",
-  "Corki",
-  "Darius",
-  "Diana",
-  "Draven",
-  "Dr. Mundo",
-  "Ekko",
-  "Elise",
-  "Evelynn",
-  "Ezreal",
-  "Fiddlesticks",
-  "Fiora",
-  "Fizz",
-  "Galio",
-  "Gangplank",
-  "Garen",
-  "Gnar",
-  "Gragas",
-  "Graves",
-  "Hecarim",
-  "Heimerdinger",
-  "Illaoi",
-  "Irelia",
-  "Ivern",
-  "Janna",
-  "Jarvan IV",
-  "Jax",
-  "Jayce",
-  "Jhin",
-  "Jinx",
-  "Kai'Sa",
-  "Kalista",
-  "Karma",
-  "Karthus",
-  "Kassadin",
-  "Katarina",
-  "Kayle",
-  "Kayn",
-  "Kennen",
-  "Kha'Zix",
-  "Kindred",
-  "Kled",
-  "Kog'Maw",
-  "LeBlanc",
-  "Lee Sin",
-  "Leona",
-  "Lissandra",
-  "Lucian",
-  "Lulu",
-  "Lux",
-  "Malphite",
-  "Malzahar",
-  "Maokai",
-  "Master Yi",
-  "Miss Fortune",
-  "Wukong",
-  "Mordekaiser",
-  "Morgana",
-  "Nami",
-  "Nasus",
-  "Nautilus",
-  "Neeko",
-  "Nidalee",
-  "Nocturne",
-  "Nunu & Willump",
-  "Olaf",
-  "Orianna",
-  "Ornn",
-  "Pantheon",
-  "Poppy",
-  "Pyke",
-  "Quinn",
-  "Rakan",
-  "Rammus",
-  "Rek'Sai",
-  "Renekton",
-  "Rengar",
-  "Riven",
-  "Rumble",
-  "Ryze",
-  "Sejuani",
-  "Shaco",
-  "Shen",
-  "Shyvana",
-  "Singed",
-  "Sion",
-  "Sivir",
-  "Skarner",
-  "Sona",
-  "Soraka",
-  "Swain",
-  "Sylas",
-  "Syndra",
-  "Tahm Kench",
-  "Taliyah",
-  "Talon",
-  "Taric",
-  "Teemo",
-  "Thresh",
-  "Tristana",
-  "Trundle",
-  "Tryndamere",
-  "Twisted Fate",
-  "Twitch",
-  "Udyr",
-  "Urgot",
-  "Varus",
-  "Vayne",
-  "Veigar",
-  "Vel'Koz",
-  "Vi",
-  "Viktor",
-  "Vladimir",
-  "Volibear",
-  "Warwick",
-  "Xayah",
-  "Xerath",
-  "Xin Zhao",
-  "Yasuo",
-  "Yorick",
-  "Zac",
-  "Zed",
-  "Ziggs",
-  "Zilean",
-  "Zoe",
-  "Zyra",
-);
+our %all_champions = ();
+
+# Gets the latest champions in League and populates our %all_champions with them.
+sub refresh_champions {
+  # get the versions json
+  my $json = get('https://ddragon.leagueoflegends.com/api/versions.json');
+  die "Failed to retrieve latest patch version from API.\n" unless defined $json;
+
+  # shift off the latest version
+  my $versions = eval { decode_json $json } or die "Failed to decode response for latest version.\n";
+  my $most_recent_version = shift @$versions;
+
+  # get the champions.json
+  $json = get("https://ddragon.leagueoflegends.com/cdn/$most_recent_version/data/en_US/champion.json");
+  die "Failed to retrieve list of champions for patch '$most_recent_version'\n" unless defined $json;
+  my $champions_data = eval { decode_json $json } or die "Failed to decode champions data.\n";
+
+  # Put just the names in our hash.
+  foreach my $key (keys %{$$champions_data{'data'}}) {
+    my $name = $$champions_data{'data'}{$key}{'name'};
+    $all_champions{$name} = 1;
+  }
+}
 
 sub get_all_champions {
   return %all_champions;
@@ -261,6 +140,10 @@ sub run_app {
     die @_; 
   }; 
 
+  # Load the champions
+  print "Getting champions in latest LoL patch...";
+  refresh_champions();
+
   # my $status = 0;
   until ('forever' && 0) {
     do_one_main_loop();
@@ -271,11 +154,12 @@ sub clear_screen {
   if ($OSNAME =~ /Win32/i) {
     system('cls');
   } elsif ($OSNAME =~ /linux/i) {
-    print "\033[2J";    #clear the screen
-    print "\033[0;0H"; #jump to 0,0
+    print "\033[2J";    # clear the screen
+    print "\033[0;0H";  # jump to 0,0
   }
 }
 
+# Main menu loop of the program
 sub do_one_main_loop {
   clear_screen();
 
@@ -304,9 +188,9 @@ sub do_one_main_loop {
 }
 
 sub show_main_menu {
-  print "  ___________\n";
+  print "  ___________ \n";
   print " |           |\n";
-  print " | LOL DRAFT | \n";
+  print " | LOL DRAFT |\n";
   print " |___________|\n";
   print "\n";
   foreach my $option (sort keys %dispatch_table) {
@@ -323,7 +207,6 @@ sub select_mode {
 
   die "Key not found in dispatch table";
 }
-
 
 sub get_user_input {
   my $input = <STDIN>;
