@@ -151,6 +151,9 @@ sub run_app {
   }; 
 
   # Load the champions
+  # TODO: load either hardcoded version or from the internet
+  print "How would you like to load champions?\n\n";
+  print ""
   print "Getting champions in latest LoL patch...";
   refresh_champions();
 
