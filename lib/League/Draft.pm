@@ -541,6 +541,8 @@ sub do_one_all_random_team {
   $$champ_pool{$_} = 1 for @reroll_pool;
 }
 
+# Assigns a player a given champion from an array ref, if the champ exists. If
+# it does, swaps the player's old champion in its place. If it doesn't, dies.
 sub assign_from_pool {
   my $player = shift;
   my $champion = shift;
