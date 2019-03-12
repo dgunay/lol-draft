@@ -3,12 +3,13 @@ package League::Draft;
 use strict;
 use warnings; # FIXME:
 
-use LWP::Simple;         # For GET requests.
-use JSON;                # For decoding responses from the Riot DataDragon API.
-use English;             # For easy-to-read constants
-use Data::Dumper;        # FIXME: for debugging
-use List::Util qw(any);  # FIXME: dead code?
-use Exporter qw(import); # For exporting specific functions
+use LWP::Simple;                        # For GET requests.
+use JSON;                               # For decoding responses from the Riot DataDragon API.
+use English;                            # For easy-to-read constants
+use Data::Dumper;                       # FIXME: for debugging
+use List::Util qw(any shuffle);         # List search/manipulation
+use Scalar::Util qw(looks_like_number); # Input validation
+use Exporter qw(import);                # For exporting specific functions
 
 our @EXPORT_OK = qw(
   run_app
@@ -301,6 +302,72 @@ sub all_random {
   # Blue team's phase
   clear_screen();
   do_one_all_random_team('Blue Team', \@blue_team, \%champ_pool);
+
+  # Display teams
+  clear_screen();
+  print_teams(\@red_team, \@blue_team);
+
+  print "\nPress Enter to return to the main menu.";
+  get_user_input();
+}
+
+sub single_draft {
+  # Leave champions unassigned
+  my $no_champions = sub { return undef; };
+  my @red_team  = create_team("Red Team",  $no_champions);
+  my @blue_team = create_team("Blue Team", $no_champions);
+
+  # Create 10 groups of 3 random champions
+  my %champions = get_all_champions();
+  my @champions = shuffle keys %champions;
+  my @trios = ();
+  for ( 1 .. 10 ) {
+    my @group = ();
+    for ( 1 .. 3 ) {
+      my $champ = shift @champions;
+      push @group, $champ;
+    }
+    push @trios, \@group;
+  }
+
+  @trios = shuffle @trios;
+
+  # Dole them out to each player and have them make their choice of 3 in turn.
+  foreach my $team ( \@red_team, \@blue_team) {
+    foreach my $player (@$team) {
+      clear_screen();
+      print "Player " . $$player{'playerName'} . "'s turn.\n";
+
+      # Print their choices
+      my $trio = shift @trios;
+      foreach my $i ( 1 .. 3) {
+        my $champ = $$trio[$i - 1];
+        print "($i) $champ\n";
+      }
+
+      my $selected = undef;
+      print "\nSelect a champion: ";
+      until ($selected) {
+        my $input = get_user_input();
+        if (looks_like_number($input) and $input > 0 and $input < 4) {
+          $selected = $$trio[$input - 1];
+          last;
+        }
+        elsif (my @hits = grep {/^$input$/i} @$trio) {
+          $selected = shift @hits;
+          last;
+        }
+
+        print "Invalid choice. Try again: " ;
+      }
+
+      $$player{'champion'} = $selected;
+    }
+
+    foreach my $player (@$team) {
+      die 'Player ' . $$player{'playerName'} . " has no champion.\n" unless defined $$player{'champion'};
+    }
+  }
 
   # Display teams
   clear_screen();
