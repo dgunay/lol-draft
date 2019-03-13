@@ -1,0 +1,1 @@
+pp -o lol_draft_win64.exe -c -I lib -l dll\SSLeay.xs.dll -l dll\libcrypto-1_1-x64__.dll -l dll\libssl-1_1-x64__.dll -l dll\perl528.dll -l dll\zlib1__.dll bin\lol_draft
