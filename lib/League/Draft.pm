@@ -3,8 +3,8 @@ package League::Draft;
 use strict;
 use warnings; # FIXME:
 
-use LWP::Simple;                        # For GET requests.
-use JSON;                               # For decoding responses from the Riot DataDragon API.
+use LWP::UserAgent;                     # For GET requests to Riot DataDragon API
+use JSON;                               # For decoding json from the Riot DataDragon API.
 use English;                            # For easy-to-read constants
 use List::Util qw(any shuffle);         # List search/manipulation
 use Scalar::Util qw(looks_like_number); # Input validation
@@ -60,8 +60,11 @@ our %all_champions = ();
 
 # Gets the latest champions in League and populates our %all_champions with them.
 sub refresh_champions {
+  my $ua = LWP::UserAgent->new();
+  $ua->agent("LoL Draft");
+
   # get the versions json
-  my $json = get('https://ddragon.leagueoflegends.com/api/versions.json');
+  my $json = get_request($ua, 'https://ddragon.leagueoflegends.com/api/versions.json');
   die "Failed to retrieve latest patch version from API.\n" unless defined $json;
 
   # shift off the latest version
@@ -69,7 +72,7 @@ sub refresh_champions {
   my $most_recent_version = shift @$versions;
 
   # get the champions.json
-  $json = get("https://ddragon.leagueoflegends.com/cdn/$most_recent_version/data/en_US/champion.json");
+  $json = get_request($ua, "https://ddragon.leagueoflegends.com/cdn/$most_recent_version/data/en_US/champion.json");
   die "Failed to retrieve list of champions for patch '$most_recent_version'\n" unless defined $json;
   my $champions_data = eval { decode_json $json } or die "Failed to decode champions data.\n";
 
@@ -78,6 +81,19 @@ sub refresh_champions {
     my $name = $$champions_data{'data'}{$key}{'name'};
     $all_champions{$name} = 1;
   }
+}
+
+sub get_request {
+  my $ua  = shift;
+  my $url = shift;
+
+  my $req = HTTP::Request->new(GET => $url);
+
+  my $response = $ua->request($req);
+
+  return $response->content if $response->is_success;
+
+  die "Request for $url failed with:\n" . $response->status_line . "\n";
 }
 
 # For testing purposes, manually sets the champions
@@ -152,9 +168,9 @@ sub run_app {
 
   # Load the champions
   # TODO: load either hardcoded version or from the internet
-  print "How would you like to load champions?\n\n";
-  print ""
-  print "Getting champions in latest LoL patch...";
+  # print "How would you like to load champions?\n\n";
+  # print ""
+  # print "Getting champions in latest LoL patch...";
   refresh_champions();
 
   # my $status = 0;
