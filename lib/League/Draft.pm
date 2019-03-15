@@ -154,6 +154,7 @@ sub die_handler {
   print "Press enter to quit.";
   get_user_input();
 
+  clear_screen();
   exit 1;
 }
 
@@ -189,9 +190,7 @@ sub run_app {
   refresh_champions();
 
   # my $status = 0;
-  until ('forever' && 0) {
-    do_one_main_loop();
-  }
+  do_one_main_loop() while 'forever';
 }
 
 sub clear_screen {
