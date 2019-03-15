@@ -3,8 +3,8 @@ package League::Draft;
 use strict;
 use warnings; # FIXME:
 
-use LWP::Simple;                        # For GET requests.
-use JSON;                               # For decoding responses from the Riot DataDragon API.
+use LWP::UserAgent;                     # For GET requests to Riot DataDragon API
+use JSON;                               # For decoding json from the Riot DataDragon API.
 use English;                            # For easy-to-read constants
 use List::Util qw(any shuffle);         # List search/manipulation
 use Scalar::Util qw(looks_like_number); # Input validation
@@ -60,8 +60,11 @@ our %all_champions = ();
 
 # Gets the latest champions in League and populates our %all_champions with them.
 sub refresh_champions {
+  my $ua = LWP::UserAgent->new();
+  $ua->agent("LoL Draft");
+
   # get the versions json
-  my $json = get('https://ddragon.leagueoflegends.com/api/versions.json');
+  my $json = get_request($ua, 'https://ddragon.leagueoflegends.com/api/versions.json');
   die "Failed to retrieve latest patch version from API.\n" unless defined $json;
 
   # shift off the latest version
@@ -69,7 +72,7 @@ sub refresh_champions {
   my $most_recent_version = shift @$versions;
 
   # get the champions.json
-  $json = get("https://ddragon.leagueoflegends.com/cdn/$most_recent_version/data/en_US/champion.json");
+  $json = get_request($ua, "https://ddragon.leagueoflegends.com/cdn/$most_recent_version/data/en_US/champion.json");
   die "Failed to retrieve list of champions for patch '$most_recent_version'\n" unless defined $json;
   my $champions_data = eval { decode_json $json } or die "Failed to decode champions data.\n";
 
@@ -78,6 +81,19 @@ sub refresh_champions {
     my $name = $$champions_data{'data'}{$key}{'name'};
     $all_champions{$name} = 1;
   }
+}
+
+sub get_request {
+  my $ua  = shift;
+  my $url = shift;
+
+  my $req = HTTP::Request->new(GET => $url);
+
+  my $response = $ua->request($req);
+
+  return $response->content if $response->is_success;
+
+  die "Request for $url failed with:\n" . $response->status_line . "\n";
 }
 
 # For testing purposes, manually sets the champions
@@ -151,7 +167,25 @@ sub run_app {
   }; 
 
   # Load the champions
-  print "Getting champions in latest LoL patch...";
+  clear_screen();
+  print "How would you like to load champions?\n\n";
+  print "(1) Get latest champions from the internet.\n";
+  print "(2) Use champions as of patch 9.5.\n\n";
+
+  my %options = (
+    '1' => \&refresh_champions,
+    '2' => \&load_hardcoded_champions,
+  );
+  print "Choose an option: ";
+  while (1) {
+    my $input = get_user_input();
+    if (exists $options{$input}) {
+      $options{$input}->();
+      last;
+    }
+    print "Invalid option. Try again: ";
+  }
+
   refresh_champions();
 
   # my $status = 0;
@@ -707,6 +741,154 @@ sub trade {
   my $temp = $$player1{'champion'};
   $$player1{'champion'} = $$player2{'champion'};
   $$player2{'champion'} = $temp;
+}
+
+sub load_hardcoded_champions {
+  %all_champions = (
+    "Aatrox" => 1,
+    "Ahri" => 1,
+    "Akali" => 1,
+    "Alistar" => 1,
+    "Amumu" => 1,
+    "Anivia" => 1,
+    "Annie" => 1,
+    "Ashe" => 1,
+    "Aurelion Sol" => 1,
+    "Azir" => 1,
+    "Bard" => 1,
+    "Blitzcrank" => 1,
+    "Brand" => 1,
+    "Braum" => 1,
+    "Caitlyn" => 1,
+    "Camille" => 1,
+    "Cassiopeia" => 1,
+    "Cho'Gath" => 1,
+    "Corki" => 1,
+    "Darius" => 1,
+    "Diana" => 1,
+    "Draven" => 1,
+    "Dr. Mundo" => 1,
+    "Ekko" => 1,
+    "Elise" => 1,
+    "Evelynn" => 1,
+    "Ezreal" => 1,
+    "Fiddlesticks" => 1,
+    "Fiora" => 1,
+    "Fizz" => 1,
+    "Galio" => 1,
+    "Gangplank" => 1,
+    "Garen" => 1,
+    "Gnar" => 1,
+    "Gragas" => 1,
+    "Graves" => 1,
+    "Hecarim" => 1,
+    "Heimerdinger" => 1,
+    "Illaoi" => 1,
+    "Irelia" => 1,
+    "Ivern" => 1,
+    "Janna" => 1,
+    "Jarvan IV" => 1,
+    "Jax" => 1,
+    "Jayce" => 1,
+    "Jhin" => 1,
+    "Jinx" => 1,
+    "Kai'Sa" => 1,
+    "Kalista" => 1,
+    "Karma" => 1,
+    "Karthus" => 1,
+    "Kassadin" => 1,
+    "Katarina" => 1,
+    "Kayle" => 1,
+    "Kayn" => 1,
+    "Kennen" => 1,
+    "Kha'Zix" => 1,
+    "Kindred" => 1,
+    "Kled" => 1,
+    "Kog'Maw" => 1,
+    "LeBlanc" => 1,
+    "Lee Sin" => 1,
+    "Leona" => 1,
+    "Lissandra" => 1,
+    "Lucian" => 1,
+    "Lulu" => 1,
+    "Lux" => 1,
+    "Malphite" => 1,
+    "Malzahar" => 1,
+    "Maokai" => 1,
+    "Master Yi" => 1,
+    "Miss Fortune" => 1,
+    "Wukong" => 1,
+    "Mordekaiser" => 1,
+    "Morgana" => 1,
+    "Nami" => 1,
+    "Nasus" => 1,
+    "Nautilus" => 1,
+    "Neeko" => 1,
+    "Nidalee" => 1,
+    "Nocturne" => 1,
+    "Nunu & Willump" => 1,
+    "Olaf" => 1,
+    "Orianna" => 1,
+    "Ornn" => 1,
+    "Pantheon" => 1,
+    "Poppy" => 1,
+    "Pyke" => 1,
+    "Quinn" => 1,
+    "Rakan" => 1,
+    "Rammus" => 1,
+    "Rek'Sai" => 1,
+    "Renekton" => 1,
+    "Rengar" => 1,
+    "Riven" => 1,
+    "Rumble" => 1,
+    "Ryze" => 1,
+    "Sejuani" => 1,
+    "Shaco" => 1,
+    "Shen" => 1,
+    "Shyvana" => 1,
+    "Singed" => 1,
+    "Sion" => 1,
+    "Sivir" => 1,
+    "Skarner" => 1,
+    "Sona" => 1,
+    "Soraka" => 1,
+    "Swain" => 1,
+    "Sylas" => 1,
+    "Syndra" => 1,
+    "Tahm Kench" => 1,
+    "Taliyah" => 1,
+    "Talon" => 1,
+    "Taric" => 1,
+    "Teemo" => 1,
+    "Thresh" => 1,
+    "Tristana" => 1,
+    "Trundle" => 1,
+    "Tryndamere" => 1,
+    "Twisted Fate" => 1,
+    "Twitch" => 1,
+    "Udyr" => 1,
+    "Urgot" => 1,
+    "Varus" => 1,
+    "Vayne" => 1,
+    "Veigar" => 1,
+    "Vel'Koz" => 1,
+    "Vi" => 1,
+    "Viktor" => 1,
+    "Vladimir" => 1,
+    "Volibear" => 1,
+    "Warwick" => 1,
+    "Xayah" => 1,
+    "Xerath" => 1,
+    "Xin Zhao" => 1,
+    "Yasuo" => 1,
+    "Yorick" => 1,
+    "Zac" => 1,
+    "Zed" => 1,
+    "Ziggs" => 1,
+    "Zilean" => 1,
+    "Zoe" => 1,
+    "Zyra" => 1,
+  );
 }
 
 1;
