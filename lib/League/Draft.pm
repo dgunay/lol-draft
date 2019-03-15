@@ -378,7 +378,6 @@ sub random_draft {
     $red_pool{$champion}  = 1 if $i % 2 == 0; # Evens go to Red
     $blue_pool{$champion} = 1 if $i % 2 == 1; # Odds go to Blue
     $i++;
-    last if $i > 20; # FIXME:
   }
 
   # Don't assign champions to start.
