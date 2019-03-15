@@ -268,6 +268,9 @@ sub new_player {
   my $champion = shift;
   my $name     = shift;
 
+  die "Player name must be defined"      unless defined $name;
+  die "Champion '$champion' not found\n" unless exists $all_champions{$champion};
+
   return {
     'champion'   => $champion,
     'playerName' => $name,  
