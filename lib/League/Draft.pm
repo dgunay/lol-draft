@@ -200,6 +200,8 @@ sub clear_screen {
   } elsif ($OSNAME =~ /linux/i) {
     print "\033[2J";    # clear the screen
     print "\033[0;0H";  # jump to 0,0
+  } elsif ($OSNAME =~ /android/i) {
+    system('clear');
   }
 }
 
