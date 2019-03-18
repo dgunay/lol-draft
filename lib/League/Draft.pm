@@ -19,6 +19,7 @@ our @EXPORT_OK = qw(
   is_valid_champ
   parse_command
   set_all_champions
+  load_hardcoded_champions
 );
 
 # Controls which view the player goes to
