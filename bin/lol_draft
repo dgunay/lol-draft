@@ -5,4 +5,10 @@ use warnings;
 
 use League::Draft qw (run_app);
 
+# Allows the user to seed the random number generator.
+if (grep {/\d+/} @ARGV) {
+  my $seed = pop @ARGV;
+  srand($seed);
+}
+
 run_app();

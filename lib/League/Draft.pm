@@ -283,7 +283,7 @@ sub get_random_champion {
 
   die 'Not a hashref' unless ref $pool eq 'HASH';
 
-  return (keys %$pool)[rand keys %$pool];
+  return (sort keys %$pool)[rand keys %$pool];
 }
 
 sub create_team {
@@ -322,12 +322,12 @@ sub create_team {
 sub all_random {
   # Local champ pool since we'll be removing champs from the pool after each roll
   my %champ_pool = get_all_champions();
-
+  
   # divide champ pools in two randomly, to make up for ordered picking.
   my %red_pool  = ();
   my %blue_pool = ();
   my $i = 0;
-  foreach my $champion (keys %champ_pool) {
+  foreach my $champion (shuffle sort keys %champ_pool) {
     $red_pool{$champion}  = 1 if $i % 2 == 0; # Evens go to Red
     $blue_pool{$champion} = 1 if $i % 2 == 1; # Odds go to Blue
     $i++;
