@@ -6,7 +6,7 @@ use warnings; # FIXME:
 use LWP::UserAgent;                     # For GET requests to Riot DataDragon API
 use JSON;                               # For decoding json from the Riot DataDragon API.
 use English;                            # For easy-to-read constants
-use List::Util qw(any shuffle);         # List search/manipulation
+use List::Util qw(shuffle);             # List manipulation
 use Scalar::Util qw(looks_like_number); # Input validation
 use Exporter qw(import);                # For exporting specific functions
 
