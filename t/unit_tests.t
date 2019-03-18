@@ -1,3 +1,5 @@
+# Set of unit tests for smaller functions in LOL Draft
+
 use strict;
 use warnings;
 
